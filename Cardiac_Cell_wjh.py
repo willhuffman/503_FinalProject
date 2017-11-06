@@ -8,7 +8,7 @@
 
 from brian2 import *
 
-num_neurons = 100
+num_neurons = 1
 duration = 2*second
 
 # Parameters
@@ -23,210 +23,159 @@ gl = 0.3*msiemens*cm**-2 * area
 gNa = 120*msiemens*cm**-2 * area
 gK = 36*msiemens*cm**-2 * area
 
-eqs_iCaL = '''
-iCaL = f_PKA_L * gCaL * (v-ECaL) * d * f * fCa : amp
+eqs_i_CaL = '''
+i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_Ca + 75) : amp
 
-d_bar   = 1/(1+ exp(-(v+12.1*mV + v_SHIFT_L)/(6*mV))) : 1
-tau_d   = 1/(alpha_d + alpha_d) : second
-alpha_d = (-0.02839 * (v + 35*mV))/(exp(-(v+35*mV)/(2.5*mV)) - 1) - (0.0849*v)/(exp(-v/(4.808*mV)) - 1) : Hz
-beta_d  = 0.0143 * (v - 5*mV)/(exp((v-5*mV)/mV) - 1) : Hz
-dd/dt   = (d_bar - d)/tau_d : 1
+d_Linf = 1/(1+exp((v+6.6*mV)/(-6.6*mV))) : 1
+tau_d_L = 0.002 * ms : second
+dd_L/dt   = (d_Linf - d_L)/tau_d_L : 1
 
-f_bar = 1/(1+exp(v(+30*mV+v_SHIFT_L)/(5*mV))) : 1
-tau_f = 55.3*ms + 257.1*exp(-((v+32.5*mV)/(13.9*mV))**2) : second
-df/dt = (f_bar - f)/tau_f : 1
+f_Linf = 1/(1+exp((v+25*mV)/(6*mV))) : 1
+tau_f = 0.031*ms + 1*ms/(1+exp((v+37.6*mV)/(8.1*mV))) : second
+df_L/dt = (f_Linf - f_L)/tau_f_L : 1
 
-alpha_fCa = Km_fCa * beta_fCa : Hz
-fCa_bar = Km_fCa / (Km_fCa + Ca_sub) : 1
-tau_fCa = fCa_bar / alpha_fCa : second
-dfCa =  (fCa_bar - fCa) / tau_fCa : 1
+df_2L/dt = alpha_f_2L * (1 - f_2L) - beta_f_2L*Ca_i*f_2L : 1
+
+alpha_f_2L : Hz
+beta_f_2L : Hz
 '''
 
-eqs_iCaT = '''
-iCaT = g_CaT * (v-ECaT) * d * f : amp
+eqs_i_CaT = '''
+i_CaT = d_T * f_T * g_CaT * (v-E_CaT) : amp
 
-d_bar = 1/(1+exp(-(v+26.3*mV)/(6*mv))) : 1
-tau_d = 1/(1.068*exp((v+26.3*mV)/(30*mV)) + 1.068*exp(-(v+26.3*mV)/(30*mV))) : second
-dd/dt = (d_bar - d)/tau_d : 1
+d_T_inf = 1/(1+exp((v + 23*mV)/(-6.1*mV))) : 1
+tau_d_T = 0.0006*ms + 0.0054*ms/(1+exp(0.03*(v + 100*mV)/mV)) : second
+dd_T/dt = (d_Tinf - d)/tau_d_T : 1
 
-f_bar = 1/(1+exp((v+61.7*mV)/(5.6*mV))) ; 1
-tau_f = 1/(0.0153*exp(-(v+61.7*mV)/(5.6*mV)) + 0.015*exp((v+61.7*mV)/(15.38*mV))) : second
-df/dt = (f_bar - f)/tau_f : 1
+f_Tinf = 1/(1+exp((v+75*mV)/(6.6*mV))) : 1
+tau_f_T = 0.001*ms + 0.04*ms/(1+exp(0.08*(v+65*mV)/mV)) : second
+df_T/dt = (f_Tinf - f_T)/tau_f_T : 1
 '''
 
-eqs_iKr = '''
-iKr = g_Kr * (v - EK) * (0.6*paF + 0.4*paS)*piy : amp
+eqs_i_Na = '''
+i_Na = (m**3) * h * g_Na * (v-E_Na) : amp
 
-pa_bar = 1/(1+exp(-(v+24*mV)/(5*mV))) : 1
+dm/dt = alpha_m * (1-m) - beta_m * m : 1
+alpha_m = 200*(v + 34.3*mV)/(1-exp(-0.09*(v+34.3*mV)/mV))/ms : Hz 
+beta_m = 8000*exp(-0.15*(v+56.2*mV)/mV)/ms : Hz
 
-tau_paS = 1/(0.0042*exp((v-9*mV)/(17*mV)) + 0.00015*exp(-(v-9*mV)/(22.6*mV))) : second
-dpaS/dt = (paS_bar - paS)/tau_paS : 1
-
-tau_paF = 1/(0.0372*exp((v-9*mV)/(15.9*mV)) + 0.00096*exp(-(v-9*mV)/(22.5*mV))) : second
-dpaF/dt = (paF_bar - paF)/tau_paF : 1
-
-piy_bar = 1/(1+exp((v+9.6*mV)/(10.1*mV))) : 1
-tau_piy = 2*ms : second
-dpiy/dt = (piy_bar - piy)/tau_piy : 1
-'''
-eqs_iKs = '''
-iKs = f_Ks * g_Ks * (v-EKs) * n**2 : amp
-
-n_bar = alpha_n/(alpha_n + beta_n) : 1
-tau_n = 1/(alpha_n + beta_n) : second
-alpha_n = 0.014/(1+exp(-(v - 40*mV + SHIFT_Ks)/(45*mV))) : Hz
-beta_n = 0.001*exp(-(v+SHIFT_Ks)/(22*mV)) : Hz
-dn/dt = (n_bar - n)/tau_n : 1
+dh/dt = alpha_h*(1-h) - beta_h*h : 1
+alpha_h = 32.4*exp(-0.14*(v+93.4*mV)/mV)/ms : Hz
+beta_h = 709/(1 + 4.2*exp(-0.06*(v+45.4*mV)/mV))/ms : Hz
 '''
 
-eqs_ito = '''
-ito = g_to*r*q*(v - EK) : amp
+# Units on i_KK?
+eqs_i_K = '''
+i_K = i_KK + i_KNa : amp
 
-r_bar = 1/(1+exp(-(v-19.3*mV)/(15*mV))) : 1
-tau_r = 14.405/(1.037*exp(0.09*(v+39.61*mV)/mV) + 0.369*exp(-0.12*(v+23.84*mV)/mV)) + 2.7535 : second
-dr/dt = (r_bar - r)/tau_r : 1
+i_KK = x * K_K * (K_o ** 0.59) * (K_i - K_o * exp(-1*v*F/(R*T))) : amp 
 
-q_bar = 1/(1+exp((v+49*mV)/(13*mV))) : 1
-tau_q = 39.102/(0.57*exp(-0.08*(v+44*mV)/mV)+0.065*exp(0.1*(v+45.93*mV)/mV)) + 6.06 : second
-dq/dt = (q_bar - q)/tau_q : 1
+i_KNa = x*K_K * P_KNa * (K_o**0.59)*(Na_i - Na_o*exp(-1*v*F/(R*T))) : amp
 
-tau_Sslow = 3.7*exp(-((v+70.0*mV/30.0)/mV)**2)*ms + 0.035*ms : second
+dx/dt = (x_inf - x)/tau_x : 1
+x_inf = 1/(1+exp((v+25.1*mV)/(-7.4*mV))) : 1
+tau_x = 1/(17*exp(0.0398*v/mV) + 0.211*exp(-0.051*v/mV))/ms : Hz
 '''
 
-eqs_isus = '''
-isus = g_sus * r * (v- EK) : amp
-r_bar = 1/(1+exp(-(v-19.3*mV)/(15*mV))) : 1
-tau_r = 14.405*ms/(1.037*exp(0.09*(v+30.61*mV)/mV) + 0.369*exp(-0.12*(v + 23.84*mV)/mV)) + 2.7535*ms : second
-dr/dt = (r_bar - r)/tau_r : 1
+eqs_i_f = '''
+i_f = i_fNa + i_fK : amp
+
+i_fNa = y*((K_o**1.83)/((K_o**1.83) + (K_mf**1.83)))*(g_fNa*(v-E_Na)) : amp
+i_fK  = y*((K_o**1.83)/((K_o**1.83) + (K_mf**1.83)))*(g_fK*(v-E_K)) : amp
+
+dy/dt = alpha_y * (1-y) - beta_y*y : 1
+alpha_y = 0.36*(v+137.8*mV)/(exp(0.066*(v + 137.8*mV)/mV) - 1)/(mV*ms) : Hz
+beta_y  = 0.1*(v+76.3*mV)/(1-exp(-0.21*(v+76.3*mV)/mV))/(mV*ms) : Hz
 '''
 
-eqs_if = '''
-if = g_f * ( ifNa + ifK) : amp
-
-ifNa = g_fNa * (v - ENa) * y**2 : amp
-IfK = g_K * (v - EK) * y**2 : amp
-
-y_bar = 1/(1+exp((v+100*mv-v_shift)/(13.5*mV))) : 1
-tau_y = 0.7166529*ms/(exp(-(v+425.5*mV)/(45.302*mV))+exp((v-73.08*mV)/(19.231*mV))) : 1
-dy/dt = (y_bar - y)/tau_y : 1
+eqs_i_p = '''
+i_p = i_pmax*(Na_i/(Na_i + K_mNa))*(K_o/(K_o + K_mK))*(1-((v - 40*mV)/(211*mV))**2) : amp
 '''
 
-eqs_ist = '''
-ist = f_PKA_st*g_st*(v-Est)*qa*qi : amp
+# Check units for i_NaCa
+eqs_i_NaCa = '''
+i_NaCa = k_NaCa*(x_2*k_21 - x_1*k_12)/(x_1 + x_2 + x_3 + x_4) : amp
 
-qa_bar = 1/(1+exp(-(v+57*mv)/(5*mv)) : 1
-tau_qa = 1/(alpha_qa + beta_qa) : second
-alpha_qa = 1/(0.15*exp(-1*v/(11*mV))+0.2*exp(-1*v/(700*mV))) : Hz
-beta_qa = 1/(16*exp(v/(8*mV))+15*exp(v/(mV))) : Hz
-dqa/dt = (qa_bar - qa)/tau_qa : 1
+x_1 = k_41*k_34*(k_23+k_21) + k_21*k_32*(k_43+k_41) : 1
+x_2 = k_32*k_43*(k_14+k_12) + k_41*k_12*(k_34+k_32) : 1
+x_3 = k_14*k_43*(k_23+k_21) + k_12*k_23*(k_43+k_41) : 1
+x_4 = k_23*k_34*(k_14+k_12) + k_14*k_21*(k_34+k_32) : 1
 
-qi_bar = alpha_qi/(alpha_qi + beta_qi) : 1
-tau_qi = alpha_qi/(alpha_qi + beta_qi) : second
-alpha_qi = 1/(3100*exp(v/(13*mV)) + 700*exp(-1*v/(70*mV))) : Hz
-beta_qi = 1/(95*exp(-1*v/(10*mV)) + 50*exp(-1*v/(700*mV))) + 0.000229/(1+exp(-1*v/(5*mV))) : Hz
-dqi/dt = (qi_bar - qi)/tau_qi : 1
+k_43 = Na_i / (K_3ni + Na_i) : 1
+k_12 = (Ca_i/K_ci)*exp(-1*Q_ci*v*F/(R*T))/d_i : 1
+k_14 = ((Na_i**2)/(K_1ni*K_2ni)+(Na_i**3)/(K_1ni*K_2ni*K_3ni))*exp(Q_n*v*F/(2*R*T))/d_i : 1
+k_41 = exp(-1*Q_n*v*F/(2*R*T)) : 1
+
+d_i = 1 + Ca_i/K_ci + Ca_i/K_ci*exp(-1*Q_ci*v*F/(R*T)) + Ca_i*Na_i/(K_ci*K_cni) + Na_i/K_1ni + (Na_i**2)/(K_1ni*K_2ni) + (Na_i**3)/(K_1ni*K_2ni*K_3ni) : 1
+
+k_34 = Na_o/(K_3no + Na_o) : 1
+k_21 = (Ca_o/K_co)*exp(Q_co*v*F/(R*T))/d_o : 1
+k_23 = ((Na_o**2)/(K_1no*K_2no) + (Na_o**3)/(K_1no*K_2no*K_3no))*exp(-1*Q_n*v*F/(2*R*T))/d_o : 1
+k_32 = exp(Q_n*v*F/(2*R*T)) : 1
+
+d_o = 1 + Ca_o/K_co + (Ca_o/K_co)*exp(Q_co*v*F/(R*T)) + Na_o/K_1no + (Na_o**2)/(K_1no*K_2no) + (Na_o**3)/(K_1no*K_2no*K_3no) : 1
 '''
 
-eqs_ibNa = '''
-ibNa = g_bNa*(v-ENa)
+eqs_i_bNa = '''
+i_bNa = g_bNa*(v-E_Na) : amp
 '''
 
-eqs_iKAch = '''
-iKAch = g_KAch * (Ki - Ko*exp(-1*v*F/(R*T))
+# Check units on i_bK
+eqs_i_bK = '''
+i_bK = K_bK*(K_o**0.41)*(K_i - K_o*exp(-1*v*F/(R*T))) : amp
 '''
 
-eqs_iNaK = '''
-iNaK = iNaK_max * (1+ (Km_Kp/Ko)**1.2)**-1 * (1+(Km_Nap/Nai)**1.3)**-1*(1+exp(-1*(v_ENa+120)/30))**-1 : amp
-'''
+# Check units on all i equations
+eqs_i_up = '''
+i_up = i_upmax*((Ca_i**2)/((Ca_i**2)+(K_mCaup**2))) : amp
+i_tr = alpha_tr*Ca_up : amp
+i_rel = alpha_rel*Ca_rel*((Ca_i**2)/((Ca_i**2) + (K_mCarel**2))) : amp
 
-eqs_NaCa = '''
-iNaCa = k_NaCa * ((Nai**3)*Cao*exp(0.03743*v*lambda_NaCa/mV)-Nao**3*Casub*exp(0.03743*v*(lambda_NaCa-1)))/(1.0+d_NaCa*(Nai**3*Cao+Nao**3*Casub)) : amp
-'''
-
-eqs_Cai = '''
-J_Cadiff = (Casub - Cai)/tau_diffCa : 1
-J_rel = P_rel * (Carel - Casub)*(Casub**2)/(Casub**2+K_rel**2) : 1
-J_up = P_up * Cai/(Cai + K_up) : 1
-J_tr = (Caup - Carel)/tau_tr
+alpha_rel = 2*F*V_rel/tau_rel : 1
+alpha_tr  = 2*F*V_rel/tau_tr : 1
 '''
 
 eqs_ion = '''
-dCai/dt = (J_Cadiff*v_sub-J_up*v_up-i_CaP)/v_i -(CM_tot*f_CMi_rate+TC_tot*f_TC_rate+TMC_tot*f_TMC_rate) : 1
-dCasub/dt = -1*((iCaL + iCaT - 2.0*iNaCa)*Cm/(2*F)+J_rel*v_rel)/v_sub - (J_Cadiff + CM_tot*f_CMs_rate) : 1
+dNa_i/dt   = -1*(i_bNa+i_fNa+i_Na+3*i_p + 3*i_NaCa + i_KNa)/(F*V_i) : 1
+dNa_o/dt   = (i_bNa+i_fNa+i_Na+3*i_p + 3*i_NaCa + i_KNa)/(F*V_e) + (Na_b - Na_o)/tau_b : 1
+
+dK_i/dt    = -1*(i_KK+i_fK-2*i_p+i_KAch)/(F*V_i) : 1
+dK_o/dt    = (i_KK+i_fK-2*i_p+i_KAch)/(F*V_e) + (K_b - K_o)/tau_b : 1
+
+dCa_i/dt   = -1*(i_CaL+i_CaT-2*i_NaCa+i_up-i_rel)/(2*F*V_i) : 1
+dCa_o/dt   = (i_CaL+i_CaT-2*i_NaCa+i_up-i_rel)/(2*F*V_e) + (Ca_b - Ca_o)/tau_b : 1
+
+dCa_up/dt  = (i_up-i_tr)/(2*F*V_up) : 1
+dCa_rel/dt = (i_tr-i_rel)/(2*F*V_rel) : 1
 '''
-
-#eqs_ina = '''
-#ina = gNa * (m**3) * h * (ENa-v) :  amp
-#
-#dm/dt = alpham * (1-m) - betam*m : 1
-#alpham = (0.1/mV) * (-(v-rest_pot)+25*mV) / (exp((-(v-rest_pot)+25*mV) / (10*mV)) - 1)/ms : Hz
-#betam = 4*exp(-(v-rest_pot)/(18*mV))/ms : Hz
-#
-#dh/dt = alphah * (1-h) - betah*h : 1
-#alphah = 0.07 * exp((-(v-rest_pot)) / (20*mV))/ms : Hz
-#betah = 1 / (exp((-(v-rest_pot)+30*mV) / (10*mV)) + 1)/ms : Hz 
-#'''
-
-#eqs_ik = '''
-#ik = gK * (n**4) * (EK-v):amp
-#dn/dt = alphan * (1-n) - betan * n : 1
-#alphan = (0.01/mV) * (-(v-rest_pot)+10*mV) / (exp((-(v-rest_pot)+10*mV) / (10*mV)) - 1)/ms : Hz
-#betan = 0.125*exp((-(v-rest_pot))/(80*mV))/ms : Hz
-#'''
-
-#eqs_il = '''
-#il = gl * (El-v) :amp
-#'''
-
-#eqs = '''
-#dv/dt = (ina+ik+il +I)/Cm:  volt
-#I : amp
-#'''
 
 eqs = '''
-dv/dt = -(iCaL + iCaT + iKr + iKs + ist + ito + isus + if + iKAch + iBNa + iNaK + iNaCa)/Cm : volt
-
+dv/dt = -(i_tot)/Cm : volt
+i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK : amp
 '''
 
-eqs += (eqs_ina+eqs_ik+eqs_il) 
+eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_NaCa + eqs_i_bNa + eqs_i_bK + eqs_i_up + eqs_ion)
 
-# Threshold and refractoriness are only used for spike counting
-group = NeuronGroup(num_neurons, eqs,
+# Set Group
+G = NeuronGroup(num_neurons, eqs,
                     threshold='v > -20*mV',
                     refractory='v > -20*mV',
                     method='exponential_euler')
-group.v = rest_pot
-group.m=0.0529
-group.n=0.3177
-group.h=0.596
+                    
+# Set initial conditions and constant values
+G.alpha_f_2L = 3/second
+G.beta_f_2L  = 40000/second
 
 
-monitor = SpikeMonitor(group)
-monitor2= StateMonitor(group,'v',record=True)
+monitor = SpikeMonitor(G)
+monitor2= StateMonitor(G,'v',record=True)
 
-#group.I = 0*nA
-#run(5.0*ms,report='text')
-#group.I = 1.5*nA
-#run(1.0*ms)
-#group.I = 0*nA
-#run(20.0*ms)
+run(duration, report='text')
 
-group.I = '(7.0*nA * i) / num_neurons'
-run(2000.0*ms, report='text')
 
 figure(1)
-plot(group.I/nA, monitor.count/duration)
-xlabel('I (nA)')
-ylabel('Firing rate (sp/s)')
-xlim(0,7)
-#ylim(0,200)
-
-figure(2)
 plot(monitor2.t/ms, monitor2.v[0]/mV) #plot the voltage for neuron 0 (index starts at 0)
-plot(monitor2.t/ms, monitor2.v[50]/mV) #plot the voltage for neuron 0 (index starts at 0)
-plot(monitor2.t/ms, monitor2.v[99]/mV) #plot the voltage for neuron 0 (index starts at 0)
 xlim(0,25)
-#ylim(-80,60) #set axes limits
 xlabel('t (ms)')
 ylabel('V (mV)')
 
