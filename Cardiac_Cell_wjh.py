@@ -13,56 +13,54 @@ from brian2.units.constants import zero_celsius, faraday_constant, gas_constant
 defaultclock.dt = 0.01*ms
 
 num_neurons = 1
-duration = 0.05*second
+duration = 2*second
 
 eqs_i_CaL = '''
-i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_CaL + 75*mV) : amp
+i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_Ca + 75*mV) : amp
 
 d_Linf = 1/(1+exp((v+6.6*mV)/(-6.6*mV))) : 1
-tau_d_L = 0.002 * ms : second
+tau_d_L = 0.002 * second : second
 dd_L/dt   = (d_Linf - d_L)/tau_d_L : 1
 
 f_Linf = 1/(1+exp((v+25*mV)/(6*mV))) : 1
-tau_f = 0.031*ms + 1*ms/(1+exp((v+37.6*mV)/(8.1*mV))) : second
+tau_f_L = 0.031*second + 1*second/(1+exp((v+37.6*mV)/(8.1*mV))) : second
 df_L/dt = (f_Linf - f_L)/tau_f_L : 1
 
 df_2L/dt = alpha_f_2L * (1 - f_2L) - beta_f_2L*Ca_i*f_2L : 1
 
 g_CaL : siemens
-E_CaL : volt
 alpha_f_2L : Hz
 beta_f_2L : Hz/mM
-tau_f_L : second
 '''
 
 eqs_i_CaT = '''
 i_CaT = d_T * f_T * g_CaT * (v-E_Ca+75*mV) : amp
 
 d_T_inf = 1/(1+exp((v + 23*mV)/(-6.1*mV))) : 1
-tau_d_T = 0.0006*ms + 0.0054*ms/(1+exp(0.03*(v + 100*mV)/mV)) : second
+tau_d_T = 0.0006*second + 0.0054*second/(1+exp(0.03*(v + 100*mV)/mV)) : second
 dd_T/dt = (d_T_inf - d_T)/tau_d_T : 1
 
 f_Tinf = 1/(1+exp((v+75*mV)/(6.6*mV))) : 1
-tau_f_T = 0.001*ms + 0.04*ms/(1+exp(0.08*(v+65*mV)/mV)) : second
+tau_f_T = 0.001*second + 0.04*second/(1+exp(0.08*(v+65*mV)/mV)) : second
 df_T/dt = (f_Tinf - f_T)/tau_f_T : 1
 
 g_CaT : siemens
-E_Ca : volt
 '''
 
 eqs_i_Na = '''
 i_Na = (m**3) * h * g_Na * (v-E_Na) : amp
 
 dm/dt = alpha_m * (1-m) - beta_m * m : 1
-alpha_m = 200*(v + 34.3*mV)/(mV)/(1-exp(-0.09*(v+34.3*mV)/mV))/ms : Hz 
-beta_m = 8000*exp(-0.15*(v+56.2*mV)/mV)/ms : Hz
+
+alpha_m = 200*(v + 34.3*mV)/(1-exp(-0.09*(v+34.3*mV)/mV))/(mV*second) : Hz 
+beta_m = 8000*exp(-0.15*(v+56.2*mV)/mV)/second : Hz
 
 dh/dt = alpha_h*(1-h) - beta_h*h : 1
-alpha_h = 32.4*exp(-0.14*(v+93.4*mV)/mV)/ms : Hz
-beta_h = 709/(1 + 4.2*exp(-0.06*(v+45.4*mV)/mV))/ms : Hz
+
+alpha_h = 32.4*exp(-0.14*(v+93.4*mV)/mV)/second : Hz
+beta_h = 709/(1 + 4.2*exp(-0.06*(v+45.4*mV)/mV))/second : Hz
 
 g_Na : siemens
-E_Na : volt
 '''
 
 # Units on i_KK?
@@ -75,7 +73,7 @@ i_KNa = x*K_K * P_KNa * (K_o**0.59)*(Na_i - Na_o*exp(-1*v*F/(R*T))) : amp
 
 dx/dt = (x_inf - x)/tau_x : 1
 x_inf = 1/(1+exp((v+25.1*mV)/(-7.4*mV))) : 1
-tau_x = 1*ms/(17*exp(0.0398*v/mV) + 0.211*exp(-0.051*v/mV)) : second
+tau_x = 1*second/(17*exp(0.0398*v/mV) + 0.211*exp(-0.051*v/mV)) : second
 
 P_KNa : 1
 '''
@@ -87,14 +85,13 @@ i_fNa = y*((K_o**1.83)/((K_o**1.83) + (K_mf**1.83)))*(g_fNa*(v-E_Na)) : amp
 i_fK  = y*((K_o**1.83)/((K_o**1.83) + (K_mf**1.83)))*(g_fK*(v-E_K)) : amp
 
 dy/dt = alpha_y * (1-y) - beta_y*y : 1
-alpha_y = 0.36*(v+137.8*mV)/(exp(0.066*(v + 137.8*mV)/mV) - 1)/(mV*ms) : Hz
-beta_y  = 0.1*(v+76.3*mV)/(1-exp(-0.21*(v+76.3*mV)/mV))/(mV*ms) : Hz
+alpha_y = 0.36*(v+137.8*mV)/(exp(0.066*(v + 137.8*mV)/mV) - 1)/(mV*second) : Hz
+beta_y  = 0.1*(v+76.3*mV)/(1-exp(-0.21*(v+76.3*mV)/mV))/(mV*second) : Hz
 
 g_fNa : siemens
 g_fK : siemens
 K_K : amp*mM**-1.59
 K_mf : mM
-E_K : volt
 '''
 
 eqs_i_p = '''
@@ -196,6 +193,12 @@ V_rel : meter**3
 V_up : meter**3
 '''
 
+eqs_nernst = '''
+E_Na = (R*T/(1*F))*log(Na_o/Na_i) : volt
+E_K  = (R*T/(1*F))*log(K_o/K_i) : volt
+E_Ca  = (R*T/(2*F))*log(Ca_o/Ca_i) : volt
+'''
+
 eqs = '''
 dv/dt = -(i_tot)/Cm : volt
 i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK : amp
@@ -203,7 +206,7 @@ i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK : amp
 Cm : farad
 '''
 
-eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_NaCa + eqs_i_bNa + eqs_i_bK + eqs_i_up + eqs_ion)
+eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_NaCa + eqs_i_bNa + eqs_i_bK + eqs_i_up + eqs_ion + eqs_nernst)
 
 # Set Group
 G = NeuronGroup(num_neurons, eqs,
@@ -226,10 +229,9 @@ G.Na_b = 140*mM
 G.Cm = 32*pF
 G.F = faraday_constant
 
-G.E_CaL = 35*mV # not included in parameter list
-G.E_Ca = 45*mV # not included in parameter list
-G.E_K = -70*mV # not included in parameter list
-G_E_Na = 46*mV # not included in parameter list
+#G.E_Ca = 45*mV # not included in parameter list
+#G.E_K = -70*mV # not included in parameter list
+#G_E_Na = 46*mV # not included in parameter list
 
 G.g_bNa = 0.24*nS
 G.g_CaL = 0.400*nS
@@ -294,23 +296,41 @@ G.f_2L = 0.2190
 G.d_T = 0.0010
 G.f_T = 0.1328
 
-monitor = SpikeMonitor(G)
-monitor2= StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK'),record=True)
-#monitor2= StateMonitor(G,('v','i_p','Na_i','K_o'),record=True)
+#monitor = SpikeMonitor(G)
+currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK'),record=True)
+concentrations = StateMonitor(G,('Na_i','Na_o','K_i','K_o','Ca_i','Ca_o','Ca_up','Ca_rel'),record=True)
+#monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
+nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
 
 run(duration, report='text')
 
 
 figure(1)
-plot(monitor2.t/ms, monitor2.v[0]/mV)
+plot(currents.t/ms, currents.v[0]/mV)
 xlabel('t (ms)')
 ylabel('V (mV)')
 
 figure(2)
-plot(monitor2.t/ms, monitor2.i_CaL[0]/pA)
+plot(currents.t/ms, currents.i_CaL[0]/pA)
 xlabel('t (ms)')
 ylabel('A (pA)')
-#ylim(0,23)
+
+#figure(3)
+#plot(monitorCaL.t/ms, monitorCaL.d_L[0]/mM)
+#plot(monitorCaL.t/ms, monitorCaL.f_L[0]/mM)
+#plot(monitorCaL.t/ms, monitorCaL.f_2L[0]/mM)
+#xlabel('t (ms)')
+#ylabel('A (pA)')
+
+figure(4)
+plot(concentrations.t/ms, concentrations.Ca_rel[0]/mM)
+xlabel('t (ms)')
+ylabel('Conc. (mM)')
+
+figure(5)
+plot(nernst.t/ms, nernst.E_Na[0]/mV)
+xlabel('t (ms)')
+ylabel('Pot. (mV)')
 
 # figure(3)
 # plot(monitor2.t/ms, monitor2.K_o[0]/mM)
