@@ -13,7 +13,7 @@ from brian2.units.constants import zero_celsius, faraday_constant, gas_constant
 defaultclock.dt = 0.01*ms
 
 num_neurons = 1
-duration = 2*second
+duration = 2.0*second
 
 eqs_i_CaL = '''
 i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_Ca + 75*mV) : amp
@@ -55,6 +55,8 @@ dm/dt = alpha_m * (1-m) - beta_m * m : 1
 alpha_m = 200*(v + 34.3*mV)/(1-exp(-0.09*(v+34.3*mV)/mV))/(mV*second) : Hz 
 beta_m = 8000*exp(-0.15*(v+56.2*mV)/mV)/second : Hz
 
+m_inf = alpha_m/(alpha_m+beta_m) : 1
+
 dh/dt = alpha_h*(1-h) - beta_h*h : 1
 
 alpha_h = 32.4*exp(-0.14*(v+93.4*mV)/mV)/second : Hz
@@ -63,13 +65,30 @@ beta_h = 709/(1 + 4.2*exp(-0.06*(v+45.4*mV)/mV))/second : Hz
 g_Na : siemens
 '''
 
+# eqs_i_Na = '''
+# i_Na = (m**3) * h * g_Na * (v-E_Na) : amp
+# 
+# dm/dt = alpha_m * (1-m) - beta_m * m : 1
+# 
+# alpha_m = -0.1*(v+45*mV)/(exp((v+45*mV)/(-10*mV))-1)/(mV*second) : Hz
+# beta_m = 4*exp((v+70*mV)/(18*mV))/second : Hz
+# 
+# dh/dt = alpha_h*(1-h) - beta_h*h : 1
+# 
+# alpha_h = 32.4*exp(-0.14*(v+93.4*mV)/mV)/second : Hz
+# beta_h = 709/(1 + 4.2*exp(-0.06*(v+45.4*mV)/mV))/second : Hz
+# 
+# g_Na : siemens
+# 
+# '''
+
 # Units on i_KK?
 eqs_i_K = '''
 i_K = i_KK + i_KNa : amp
 
 i_KK = x * K_K * (K_o ** 0.59) * (K_i - K_o * exp(-1*v*F/(R*T))) : amp 
 
-i_KNa = x*K_K * P_KNa * (K_o**0.59)*(Na_i - Na_o*exp(-1*v*F/(R*T))) : amp
+i_KNa = x * K_K * P_KNa * (K_o**0.59) * (Na_i - Na_o*exp(-1*v*F/(R*T))) : amp
 
 dx/dt = (x_inf - x)/tau_x : 1
 x_inf = 1/(1+exp((v+25.1*mV)/(-7.4*mV))) : 1
@@ -116,7 +135,7 @@ k_12 = (Ca_i/K_ci)*exp(-1*Q_ci*v*F/(R*T))/d_i : 1
 k_14 = ((Na_i**2)/(K_1ni*K_2ni)+(Na_i**3)/(K_1ni*K_2ni*K_3ni))*exp(Q_n*v*F/(2*R*T))/d_i : 1
 k_41 = exp(-1*Q_n*v*F/(2*R*T)) : 1
 
-d_i = 1 + Ca_i/K_ci + Ca_i/K_ci*exp(-1*Q_ci*v*F/(R*T)) + Ca_i*Na_i/(K_ci*K_cni) + Na_i/K_1ni + (Na_i**2)/(K_1ni*K_2ni) + (Na_i**3)/(K_1ni*K_2ni*K_3ni) : 1
+d_i = 1 + Ca_i/K_ci + (Ca_i/K_ci)*exp(-1*Q_ci*v*F/(R*T)) + Ca_i*Na_i/(K_ci*K_cni) + Na_i/K_1ni + (Na_i**2)/(K_1ni*K_2ni) + (Na_i**3)/(K_1ni*K_2ni*K_3ni) : 1
 
 k_34 = Na_o/(K_3no + Na_o) : 1
 k_21 = (Ca_o/K_co)*exp(Q_co*v*F/(R*T))/d_o : 1
@@ -144,6 +163,7 @@ T : kelvin
 
 eqs_i_bNa = '''
 i_bNa = g_bNa*(v-E_Na) : amp
+
 g_bNa : siemens
 '''
 
@@ -169,8 +189,8 @@ K_mCaup : mM
 '''
 
 eqs_ion = '''
-dNa_i/dt   = -1*(i_bNa+i_fNa+i_Na+3*i_p + 3*i_NaCa + i_KNa)/(F*V_i) : mM
-dNa_o/dt   = (i_bNa+i_fNa+i_Na+3*i_p + 3*i_NaCa + i_KNa)/(F*V_e) + (Na_b - Na_o)/tau_b : mM
+dNa_i/dt   = -1*(i_bNa + i_fNa + i_Na + 3*i_p + 3*i_NaCa + i_KNa)/(F*V_i) : mM
+dNa_o/dt   = ((i_bNa + i_fNa + i_Na + 3*i_p + 3*i_NaCa + i_KNa)/(F*V_e)) + ((Na_b - Na_o)/tau_b) : mM
 
 dK_i/dt    = -1*(i_KK+i_fK-2*i_p+i_bK)/(F*V_i) : mM
 dK_o/dt    = (i_KK+i_fK-2*i_p+i_bK)/(F*V_e) + (K_b - K_o)/tau_b : mM
@@ -201,8 +221,9 @@ E_Ca  = (R*T/(2*F))*log(Ca_o/Ca_i) : volt
 
 eqs = '''
 dv/dt = -(i_tot)/Cm : volt
-i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK : amp
+i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK + I_in : amp
 
+I_in : amp
 Cm : farad
 '''
 
@@ -296,11 +317,14 @@ G.f_2L = 0.2190
 G.d_T = 0.0010
 G.f_T = 0.1328
 
+G.I_in = 0*pA
+
 #monitor = SpikeMonitor(G)
 currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK'),record=True)
 concentrations = StateMonitor(G,('Na_i','Na_o','K_i','K_o','Ca_i','Ca_o','Ca_up','Ca_rel'),record=True)
 #monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
+i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
 
 run(duration, report='text')
 
@@ -309,11 +333,13 @@ figure(1)
 plot(currents.t/ms, currents.v[0]/mV)
 xlabel('t (ms)')
 ylabel('V (mV)')
+ylim(-100,0)
 
 figure(2)
-plot(currents.t/ms, currents.i_CaL[0]/pA)
+plot(currents.t/ms, currents.i_Na[0]/pA)
 xlabel('t (ms)')
 ylabel('A (pA)')
+ylim(-50,50)
 
 #figure(3)
 #plot(monitorCaL.t/ms, monitorCaL.d_L[0]/mM)
@@ -323,12 +349,15 @@ ylabel('A (pA)')
 #ylabel('A (pA)')
 
 figure(4)
-plot(concentrations.t/ms, concentrations.Ca_rel[0]/mM)
+plot(concentrations.t/ms, concentrations.Na_o[0]/mM)
 xlabel('t (ms)')
 ylabel('Conc. (mM)')
+ylim(0,200)
 
 figure(5)
+#plot(nernst.t/ms, nernst.E_Na[0]/mV)
 plot(nernst.t/ms, nernst.E_Na[0]/mV)
+#plot(nernst.t/ms, nernst.K[0]/mV)
 xlabel('t (ms)')
 ylabel('Pot. (mV)')
 
@@ -337,5 +366,16 @@ ylabel('Pot. (mV)')
 # xlabel('t (ms)')
 # ylabel('Concentration (mM)')
 # ylim(0,6)
+
+figure(6)
+#plot(i_Na_var.t/ms, i_Na_var.alpha_m[0])
+plot(i_Na_var.t/ms, i_Na_var.beta_m[0])
+#plot(i_Na_var.t/ms, i_Na_var.h[0])
+#plot(nernst.t/ms, nernst.K[0]/mV)
+xlabel('t (ms)')
+
+figure(7)
+plot(i_Na_var.t/ms, i_Na_var.h[0])
+xlabel('t (ms)')
 
 show()
