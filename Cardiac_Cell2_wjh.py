@@ -1,11 +1,9 @@
 # Will Huffman
 # BME 503 Final Project
-# Model based on Dokos 1996 Papers:
+# Model based on Kharche 2011 Papers:
 # [1]
-# "Ion Currents Underlying Sinoatrial Node Pacemaker Activity:
-#  A New Single Cell Mathematical Model"
-# [2]
-# "Vagal Control of Sinoatrial Rhythm] a Mathematical Model"
+# " A mathematical model of action potentials of mouse sinoatrial node cells
+#   with molecular bases"
 
 from brian2 import *
 from brian2.units.constants import faraday_constant, gas_constant
@@ -52,15 +50,13 @@ i_Na = (m**3) * h * g_Na * (v-E_Na) : amp
 
 dm/dt = alpha_m * (1-m) - beta_m * m : 1
 
-alpha_m = 200*(v + 34.3*mV)/(1-exp(-0.09*(v+34.3*mV)/mV))/(mV*second) : Hz 
-beta_m = 8000*exp(-0.15*(v+56.2*mV)/mV)/second : Hz
-
-m_inf = alpha_m/(alpha_m+beta_m) : 1
+alpha_m = 200*(v + 34.3*mV)/(1-exp(-0.09*(v + 34.3*mV)/mV))/(mV*second) : Hz 
+beta_m = 8000*exp(-0.15*(v + 56.2*mV)/mV)/second : Hz
 
 dh/dt = alpha_h*(1-h) - beta_h*h : 1
 
-alpha_h = 32.4*exp(-0.14*(v+93.4*mV)/mV)/second : Hz
-beta_h = 709/(1 + 4.2*exp(-0.06*(v+45.4*mV)/mV))/second : Hz
+alpha_h = 32.4*exp(-0.14*(v + 93.4*mV)/mV)/second : Hz
+beta_h = 709/(1 + 4.2*exp(-0.06*(v + 45.4*mV)/mV))/second : Hz
 
 g_Na : siemens
 '''
@@ -324,7 +320,7 @@ currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i
 concentrations = StateMonitor(G,('Na_i','Na_o','K_i','K_o','Ca_i','Ca_o','Ca_up','Ca_rel'),record=True)
 #monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
-i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
+i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h'),record=True)
 i_CaL_var      = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 
 run(duration, report='text')
@@ -337,7 +333,7 @@ ylabel('V (mV)')
 ylim(-100,0)
 
 figure(2)
-plot(currents.t/ms, currents.i_NaCa[0]/pA)
+plot(currents.t/ms, currents.i_bK[0]/pA)
 xlabel('t (ms)')
 ylabel('A (pA)')
 ylim(-40,30)
@@ -357,8 +353,8 @@ ylim(0,200)
 
 figure(5)
 plot(nernst.t/ms, nernst.E_Na[0]/mV)
-plot(nernst.t/ms, nernst.E_Ca[0]/mV)
-plot(nernst.t/ms, nernst.E_K[0]/mV)
+#plot(nernst.t/ms, nernst.E_Ca[0]/mV)
+#plot(nernst.t/ms, nernst.E_K[0]/mV)
 xlabel('t (ms)')
 ylabel('Pot. (mV)')
 
@@ -370,8 +366,9 @@ ylabel('Pot. (mV)')
 
 figure(6)
 #plot(i_Na_var.t/ms, i_Na_var.alpha_m[0])
-plot(i_Na_var.t/ms, i_Na_var.beta_m[0])
-#plot(i_Na_var.t/ms, i_Na_var.h[0])
+#plot(i_Na_var.t/ms, i_Na_var.beta_m[0])
+plot(i_Na_var.t/ms, i_Na_var.m[0])
+plot(i_Na_var.t/ms, i_Na_var.h[0])
 #plot(nernst.t/ms, nernst.K[0]/mV)
 xlabel('t (ms)')
 
