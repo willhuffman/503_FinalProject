@@ -13,7 +13,7 @@ from brian2.units.constants import faraday_constant, gas_constant
 defaultclock.dt = 0.01*ms
 
 num_neurons = 1
-duration = 1.0*second
+duration = 10.0*second
 
 eqs_i_CaL = '''
 i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_Ca + 75*mV) : amp
@@ -192,11 +192,11 @@ eqs_ion = '''
 dNa_i/dt   = -1*(i_bNa + i_fNa + i_Na + 3*i_p + 3*i_NaCa + i_KNa)/(F*V_i) : mM
 dNa_o/dt   = ((i_bNa + i_fNa + i_Na + 3*i_p + 3*i_NaCa + i_KNa)/(F*V_e)) + ((Na_b - Na_o)/tau_b) : mM
 
-dK_i/dt    = -1*(i_KK + i_fK - 2*i_p + i_bK)/(F*V_i) : mM
-dK_o/dt    = ((i_KK + i_fK - 2*i_p + i_bK)/(F*V_e)) + (K_b - K_o)/tau_b : mM
+dK_i/dt    = -1*(i_KK + i_fK - 2*i_p)/(F*V_i) : mM
+dK_o/dt    = ((i_KK + i_fK - 2*i_p)/(F*V_e)) + (K_b - K_o)/tau_b : mM
 
 dCa_i/dt   = -1*(i_CaL + i_CaT - 2*i_NaCa + i_up - i_rel)/(2*F*V_i) : mM
-dCa_o/dt   = (i_CaL + i_CaT - 2*i_NaCa + i_up - i_rel)/(2*F*V_e) + (Ca_b - Ca_o)/tau_b : mM
+dCa_o/dt   = (i_CaL + i_CaT - 2*i_NaCa)/(2*F*V_e) + (Ca_b - Ca_o)/tau_b : mM
 
 dCa_up/dt  = (i_up-i_tr)/(2*F*V_up) : mM
 dCa_rel/dt = (i_tr-i_rel)/(2*F*V_rel) : mM
@@ -231,7 +231,7 @@ eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_N
 
 # Set Group
 G = NeuronGroup(num_neurons, eqs,
-                    threshold='v > -20*mV',
+                    threshold='v > 0*mV',
                     refractory='v > -20*mV',
                     method='euler')
                     
@@ -250,12 +250,8 @@ G.Na_b = 140*mM
 G.Cm = 52*pF # ALTERED FROM 32pF
 G.F = faraday_constant
 
-#G.E_Ca = 45*mV # not included in parameter list
-#G.E_K = -70*mV # not included in parameter list
-#G_E_Na = 46*mV # not included in parameter list
-
 G.g_bNa = 0.24*nS
-G.g_CaL = 0.400*nS
+G.g_CaL = 400*nS
 G.g_CaT = 85*nS
 G.g_fK = 13.5*nS
 G.g_fNa = 8.1*nS
@@ -319,13 +315,13 @@ G.f_T = 0.1328
 
 G.I_in = -00.0*pA
 
-#monitor = SpikeMonitor(G)
+spikes         = SpikeMonitor(G)
 currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK','i_tot'),record=True)
-concentrations = StateMonitor(G,('Na_i','Na_o','K_i','K_o','Ca_i','Ca_o','Ca_up','Ca_rel'),record=True)
-#monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
-nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
-i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
-i_CaL_var      = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
+# concentrations = StateMonitor(G,('Na_i','Na_o','K_i','K_o','Ca_i','Ca_o','Ca_up','Ca_rel'),record=True)
+# #monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
+# nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
+# i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
+# i_CaL_var      = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 
 run(duration, report='text')
 
@@ -334,56 +330,54 @@ figure(1)
 plot(currents.t/ms, currents.v[0]/mV)
 xlabel('t (ms)')
 ylabel('V (mV)')
-ylim(-100,0)
 
 figure(2)
-plot(currents.t/ms, currents.i_NaCa[0]/pA)
+plot(currents.t/ms, currents.i_tot[0]/pA)
 xlabel('t (ms)')
 ylabel('A (pA)')
-ylim(-40,30)
 
-#figure(3)
-#plot(monitorCaL.t/ms, monitorCaL.d_L[0]/mM)
-#plot(monitorCaL.t/ms, monitorCaL.f_L[0]/mM)
-#plot(monitorCaL.t/ms, monitorCaL.f_2L[0]/mM)
-#xlabel('t (ms)')
-#ylabel('A (pA)')
-
-figure(4)
-plot(concentrations.t/ms, concentrations.K_o[0]/mM)
-xlabel('t (ms)')
-ylabel('Conc. (mM)')
-ylim(0,200)
-
-figure(5)
-plot(nernst.t/ms, nernst.E_Na[0]/mV)
-plot(nernst.t/ms, nernst.E_Ca[0]/mV)
-plot(nernst.t/ms, nernst.E_K[0]/mV)
-xlabel('t (ms)')
-ylabel('Pot. (mV)')
-
-# figure(3)
-# plot(monitor2.t/ms, monitor2.K_o[0]/mM)
+# #figure(3)
+# #plot(monitorCaL.t/ms, monitorCaL.d_L[0]/mM)
+# #plot(monitorCaL.t/ms, monitorCaL.f_L[0]/mM)
+# #plot(monitorCaL.t/ms, monitorCaL.f_2L[0]/mM)
+# #xlabel('t (ms)')
+# #ylabel('A (pA)')
+# 
+# figure(4)
+# plot(concentrations.t/ms, concentrations.K_o[0]/mM)
 # xlabel('t (ms)')
-# ylabel('Concentration (mM)')
-# ylim(0,6)
-
-figure(6)
-#plot(i_Na_var.t/ms, i_Na_var.alpha_m[0])
-plot(i_Na_var.t/ms, i_Na_var.beta_m[0])
-#plot(i_Na_var.t/ms, i_Na_var.h[0])
-#plot(nernst.t/ms, nernst.K[0]/mV)
-xlabel('t (ms)')
-
-figure(7)
-plot(i_Na_var.t/ms, i_Na_var.h[0])
-xlabel('t (ms)')
-
-figure(8)
-plot(i_CaL_var.t/ms, i_CaL_var.d_L[0])
-#plot(i_CaL_var.t/ms, i_CaL_var.f_L[0])
-#plot(i_CaL_var.t/ms, i_CaL_var.f_2L[0])
-xlabel('t (ms)')
-ylabel('gating param (0-1)')
+# ylabel('Conc. (mM)')
+# ylim(0,200)
+# 
+# figure(5)
+# plot(nernst.t/ms, nernst.E_Na[0]/mV)
+# plot(nernst.t/ms, nernst.E_Ca[0]/mV)
+# plot(nernst.t/ms, nernst.E_K[0]/mV)
+# xlabel('t (ms)')
+# ylabel('Pot. (mV)')
+# 
+# # figure(3)
+# # plot(monitor2.t/ms, monitor2.K_o[0]/mM)
+# # xlabel('t (ms)')
+# # ylabel('Concentration (mM)')
+# # ylim(0,6)
+# 
+# figure(6)
+# #plot(i_Na_var.t/ms, i_Na_var.alpha_m[0])
+# plot(i_Na_var.t/ms, i_Na_var.beta_m[0])
+# #plot(i_Na_var.t/ms, i_Na_var.h[0])
+# #plot(nernst.t/ms, nernst.K[0]/mV)
+# xlabel('t (ms)')
+# 
+# figure(7)
+# plot(i_Na_var.t/ms, i_Na_var.h[0])
+# xlabel('t (ms)')
+# 
+# figure(8)
+# plot(i_CaL_var.t/ms, i_CaL_var.d_L[0])
+# #plot(i_CaL_var.t/ms, i_CaL_var.f_L[0])
+# #plot(i_CaL_var.t/ms, i_CaL_var.f_2L[0])
+# xlabel('t (ms)')
+# ylabel('gating param (0-1)')
 
 show()
