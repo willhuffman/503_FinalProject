@@ -13,7 +13,7 @@ from numpy import *
 
 defaultclock.dt = 0.01*ms
 
-num_neurons = 100
+num_neurons = 10
 duration = 10.0*second
 
 eqs_i_CaL = '''
@@ -73,7 +73,7 @@ i_KK = x * K_K * (K_o ** 0.59) * (K_i - K_o * exp(-1*v*F/(R*T))) : amp
 
 i_KNa = x * K_K * P_KNa * (K_o**0.59) * (Na_i - Na_o*exp(-1*v*F/(R*T))) : amp
 
-dx/dt = (x_inf - x)/tau_x + (rand_scale/ms**0.5)*xi : 1
+dx/dt = (x_inf - x)/tau_x : 1
 x_inf = 1/(1+exp((v+25.1*mV)/(-7.4*mV))) : 1
 tau_x = 1*second/(17*exp(0.0398*v/mV) + 0.211*exp(-0.051*v/mV)) : second
 
@@ -94,7 +94,6 @@ g_fNa : siemens
 g_fK : siemens
 K_K : amp*mM**-1.59
 K_mf : mM
-rand_scale : 1
 '''
 
 eqs_i_p = '''
@@ -171,6 +170,17 @@ K_mCarel : mM
 K_mCaup : mM
 '''
 
+# Vagal Input
+eqs_i_KACh = '''
+i_KACh = (K_bK + u**4 * K_KACh) * (K_o)**0.41 * (K_i - K_o*exp(-v*F/(R*T))) : amp
+
+du/dt = alpha_u * (1 - u) - beta_u * u : 1
+alpha_u = 4.7 * (ACh/mM) / (ACh/mM + 0.00012)/second : Hz
+beta_u = 0.00027 / (ACh/mM + 0.00012) / second : Hz
+
+K_KACh : amp*mM**-1.41
+'''
+
 eqs_ion = '''
 dNa_i/dt   = -1*(i_bNa + i_fNa + i_Na + 3*i_p + 3*i_NaCa + i_KNa)/(F*V_i) : mM
 dNa_o/dt   = ((i_bNa + i_fNa + i_Na + 3*i_p + 3*i_NaCa + i_KNa)/(F*V_e)) + ((Na_b - Na_o)/tau_b) : mM
@@ -196,6 +206,20 @@ V_rel : meter**3
 V_up : meter**3
 '''
 
+eqs_ACh = '''
+dACh_ms/dt  = (k_H/F_ms)*ACh + (k_E/F_ms)*ACh_ex : mM
+dACh/dt     = -1*k_H*ACh - k_D*(ACh-ACh_ex) : mM
+dACh_ex/dt  = -1*(k_E/F_ex)*ACh_ex - (k_D/F_ms)*(ACh_ex - ACh) : mM
+
+k_H : Hz
+k_E : Hz
+k_D : Hz
+
+F_ms : 1
+F_ex : 1
+
+'''
+
 eqs_nernst = '''
 E_Na = (R*T/(1*F))*log(Na_o/Na_i) : volt
 E_K  = (R*T/(1*F))*log(K_o/K_i) : volt
@@ -204,13 +228,16 @@ E_Ca  = (R*T/(2*F))*log(Ca_o/Ca_i) : volt
 
 eqs = '''
 dv/dt = -(i_tot)/Cm : volt
-i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK + I_in : amp
+i_tot = i_CaL + i_CaT + i_Na + i_K + i_f + i_p + i_NaCa + i_bNa + i_bK + I_in + i_KACh : amp
 
 I_in : amp
 Cm : farad
+
+k_1 : 1
+k_2 : 1
 '''
 
-eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_NaCa + eqs_i_bNa + eqs_i_bK + eqs_i_up + eqs_ion + eqs_nernst)
+eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_NaCa + eqs_i_bNa + eqs_i_bK + eqs_i_up + eqs_i_KACh + eqs_ACh + eqs_ion + eqs_nernst)
 
 # Set Group
 G = NeuronGroup(num_neurons, eqs,
@@ -218,6 +245,17 @@ G = NeuronGroup(num_neurons, eqs,
                     refractory='v > -20*mV',
                     method='euler')
                     
+# Set Poisson process
+P = PoissonGroup(num_neurons, '(5*Hz * i) / num_neurons')
+
+# Set Synapse
+S = Synapses(P,G, pre='''ACh_ms *= (1 - k_1 - k_2)
+                         ACh += k_1*F_ms*ACh_ms
+                         ACh_ex += k_2 * (F_ms/F_ex)*ACh_ms''')
+                         
+S.connect(i=numpy.arange(num_neurons), j=numpy.arange(num_neurons))
+                         
+                         
 # Set initial conditions and constant values
 G.alpha_f_2L = 3/second
 G.beta_f_2L  = 40000/second/mM
@@ -297,11 +335,22 @@ G.d_T = 0.0010
 G.f_T = 0.1328
 
 G.I_in = -00.0*pA
-G.rand_scale = '(0.1 * i) / num_neurons'
+
+G.F_ms = 1
+G.F_ex = 1
+G.k_D = 0.5/second
+G.k_E = 0.5/second
+G.k_H = 14/second
+G.K_KACh = 2*pA*mM**-1.41
+G.ACh_ms = 0.008*mM
+
+G.k_1 = 0.01
+G.k_2 = 0.0005
 
 spikes         = SpikeMonitor(G)
-currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK','i_tot'),record=True)
-# concentrations = StateMonitor(G,('Na_i','Na_o','K_i','K_o','Ca_i','Ca_o','Ca_up','Ca_rel'),record=True)
+spikesP        = SpikeMonitor(P)
+currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK','i_tot', 'i_KACh'),record=True)
+concentrations = StateMonitor(G,('ACh_ms','ACh','ACh_ex'),record=True)
 # #monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 # nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
 # i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
@@ -311,62 +360,28 @@ run(duration, report='text')
 
 
 figure(1)
-plot(currents.t/second, currents.v[99]/mV)
+plot(currents.t/second, currents.v[0]/mV)
 xlabel('t (s)')
 ylabel('V (mV)')
 
-
-# figure(2)
-# plot(currents.t/ms, currents.i_tot[0]/pA)
-# xlabel('t (ms)')
-# ylabel('A (pA)')
-
-# #figure(3)
-# #plot(monitorCaL.t/ms, monitorCaL.d_L[0]/mM)
-# #plot(monitorCaL.t/ms, monitorCaL.f_L[0]/mM)
-# #plot(monitorCaL.t/ms, monitorCaL.f_2L[0]/mM)
-# #xlabel('t (ms)')
-# #ylabel('A (pA)')
-# 
-# figure(4)
-# plot(concentrations.t/ms, concentrations.K_o[0]/mM)
-# xlabel('t (ms)')
-# ylabel('Conc. (mM)')
-# ylim(0,200)
-# 
-# figure(5)
-# plot(nernst.t/ms, nernst.E_Na[0]/mV)
-# plot(nernst.t/ms, nernst.E_Ca[0]/mV)
-# plot(nernst.t/ms, nernst.E_K[0]/mV)
-# xlabel('t (ms)')
-# ylabel('Pot. (mV)')
-# 
-# # figure(3)
-# # plot(monitor2.t/ms, monitor2.K_o[0]/mM)
-# # xlabel('t (ms)')
-# # ylabel('Concentration (mM)')
-# # ylim(0,6)
-# 
-# figure(6)
-# #plot(i_Na_var.t/ms, i_Na_var.alpha_m[0])
-# plot(i_Na_var.t/ms, i_Na_var.beta_m[0])
-# #plot(i_Na_var.t/ms, i_Na_var.h[0])
-# #plot(nernst.t/ms, nernst.K[0]/mV)
-# xlabel('t (ms)')
-# 
-# figure(7)
-# plot(i_Na_var.t/ms, i_Na_var.h[0])
-# xlabel('t (ms)')
-# 
-# figure(8)
-# plot(i_CaL_var.t/ms, i_CaL_var.d_L[0])
-# #plot(i_CaL_var.t/ms, i_CaL_var.f_L[0])
-# #plot(i_CaL_var.t/ms, i_CaL_var.f_2L[0])
-# xlabel('t (ms)')
-# ylabel('gating param (0-1)')
-
-figure(9)
+figure(2)
 plot(spikes.t/second, 1.0*spikes.i, '.')
+xlim([0,10])
+xlabel('Time (s)')
+ylabel('Neuron Index')
+
+figure(3)
+plot(currents.t/second, currents.i_KACh[0]/nA)
+xlabel('t (s)')
+ylabel('I (nA)')
+
+figure(4)
+plot(concentrations.t/second, concentrations.ACh_ex[num_neurons - 1]/mM)
+xlabel('t (ms)')
+ylabel('ACh Concentration (mM)')
+
+figure(5)
+plot(spikesP.t/second, 1.0*spikesP.i, '.')
 xlim([0,10])
 xlabel('Time (s)')
 ylabel('Neuron Index')
