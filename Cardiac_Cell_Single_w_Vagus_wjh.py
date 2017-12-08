@@ -14,7 +14,7 @@ from numpy import *
 defaultclock.dt = 0.01*ms
 
 num_neurons = 10
-duration = 10.0*second
+duration = 30.0*second
 
 eqs_i_CaL = '''
 i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_Ca + 75*mV) : amp
@@ -242,11 +242,10 @@ eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_N
 # Set Group
 G = NeuronGroup(num_neurons, eqs,
                     threshold='v > 0*mV',
-                    refractory='v > -20*mV',
                     method='euler')
                     
 # Set Poisson process
-P = PoissonGroup(num_neurons, '(5*Hz * i) / num_neurons')
+P = PoissonGroup(num_neurons, '(20*Hz * i) / num_neurons')
 
 # Set Synapse
 S = Synapses(P,G, pre='''ACh_ms *= (1 - k_1 - k_2)
@@ -349,8 +348,9 @@ G.k_2 = 0.0005
 
 spikes         = SpikeMonitor(G)
 spikesP        = SpikeMonitor(P)
-currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK','i_tot', 'i_KACh'),record=True)
-concentrations = StateMonitor(G,('ACh_ms','ACh','ACh_ex'),record=True)
+voltage        = StateMonitor(G,('v'),record=True)
+# currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK','i_tot', 'i_KACh'),record=True)
+# concentrations = StateMonitor(G,('ACh_ms','ACh','ACh_ex'),record=True)
 # #monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 # nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
 # i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
@@ -359,31 +359,34 @@ concentrations = StateMonitor(G,('ACh_ms','ACh','ACh_ex'),record=True)
 run(duration, report='text')
 
 
-figure(1)
-plot(currents.t/second, currents.v[0]/mV)
+figure(100)
+plot(voltage.t/second, voltage.v[1]/mV)
+plot(voltage.t/second, voltage.v[5]/mV)
+plot(voltage.t/second, voltage.v[num_neurons - 1]/mV)
+xlim([0,duration/second])
 xlabel('t (s)')
 ylabel('V (mV)')
 
 figure(2)
 plot(spikes.t/second, 1.0*spikes.i, '.')
-xlim([0,10])
+xlim([0,duration/second])
 xlabel('Time (s)')
 ylabel('Neuron Index')
 
-figure(3)
-plot(currents.t/second, currents.i_KACh[0]/nA)
-xlabel('t (s)')
-ylabel('I (nA)')
-
-figure(4)
-plot(concentrations.t/second, concentrations.ACh_ex[num_neurons - 1]/mM)
-xlabel('t (ms)')
-ylabel('ACh Concentration (mM)')
+# figure(3)
+# plot(currents.t/second, currents.i_KACh[num_neurons - 1]/nA)
+# xlabel('t (s)')
+# ylabel('I (nA)')
+# 
+# figure(4)
+# plot(concentrations.t/second, concentrations.ACh_ex[num_neurons - 1]/mM)
+# xlabel('t (ms)')
+# ylabel('ACh Concentration (mM)')
 
 figure(5)
 plot(spikesP.t/second, 1.0*spikesP.i, '.')
-xlim([0,10])
+xlim([0,duration/second])
 xlabel('Time (s)')
-ylabel('Neuron Index')
+ylabel('Poisson Input Index')
 
 show()
