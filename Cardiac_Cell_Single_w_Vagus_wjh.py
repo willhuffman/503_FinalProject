@@ -1,4 +1,11 @@
+# TEAM HEART
 # Will Huffman
+# Eric Musselman
+# Emily Shannon
+# TEAM BRAIN
+# Gabriel Antoniak
+# Sachit Menon
+#
 # BME 503 Final Project
 # Model based on Dokos 1996 Papers:
 # [1]
@@ -11,11 +18,12 @@ from brian2 import *
 from brian2.units.constants import faraday_constant, gas_constant
 from numpy import *
 
+# INITIALIZE EQUATIONS
 defaultclock.dt = 0.01*ms
-
 num_neurons = 10
 duration = 30.0*second
 
+# DEFINE EQUATIONS
 eqs_i_CaL = '''
 i_CaL = d_L * f_L * f_2L * g_CaL * (v - E_Ca + 75*mV) : amp
 
@@ -239,23 +247,23 @@ k_2 : 1
 
 eqs += (eqs_i_CaL + eqs_i_CaT + eqs_i_Na + eqs_i_K + eqs_i_f + eqs_i_p + eqs_i_NaCa + eqs_i_bNa + eqs_i_bK + eqs_i_up + eqs_i_KACh + eqs_ACh + eqs_ion + eqs_nernst)
 
-# Set Group
+# SET NEURON
 G = NeuronGroup(num_neurons, eqs,
                     threshold='v > 0*mV',
                     method='euler')
                     
-# Set Poisson process
+# SET POISSON PROCESS
 P = PoissonGroup(num_neurons, '(20*Hz * i) / num_neurons')
 
-# Set Synapse
+# SET SYNAPSE
 S = Synapses(P,G, pre='''ACh_ms *= (1 - k_1 - k_2)
                          ACh += k_1*F_ms*ACh_ms
                          ACh_ex += k_2 * (F_ms/F_ex)*ACh_ms''')
-                         
+
+# CONNECT POISSONGROUP TO NEURONGROUP
 S.connect(i=numpy.arange(num_neurons), j=numpy.arange(num_neurons))
-                         
-                         
-# Set initial conditions and constant values
+
+# SET INITIAL CONDITIONS AND CONSTANT VALUES
 G.alpha_f_2L = 3/second
 G.beta_f_2L  = 40000/second/mM
 
@@ -351,17 +359,17 @@ spikesP        = SpikeMonitor(P)
 voltage        = StateMonitor(G,('v'),record=True)
 # currents       = StateMonitor(G,('v','i_CaL','i_CaT','i_Na','i_K','i_f','i_p','i_NaCa','i_bNa','i_bK','i_tot', 'i_KACh'),record=True)
 # concentrations = StateMonitor(G,('ACh_ms','ACh','ACh_ex'),record=True)
-# #monitorCaL     = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 # nernst         = StateMonitor(G,('E_Na','E_K','E_Ca'),record=True)
-# i_Na_var       = StateMonitor(G,('alpha_m','beta_m','m','h','m_inf'),record=True)
-# i_CaL_var      = StateMonitor(G,('d_L','f_L','f_2L'),record=True)
 
 run(duration, report='text')
 
-
-figure(100)
+# PLOT RESULTS
+figure(1)
+subplot(3,1,1)
 plot(voltage.t/second, voltage.v[1]/mV)
+subplot(3,1,2)
 plot(voltage.t/second, voltage.v[5]/mV)
+subplot(3,1,3)
 plot(voltage.t/second, voltage.v[num_neurons - 1]/mV)
 xlim([0,duration/second])
 xlabel('t (s)')
@@ -373,17 +381,7 @@ xlim([0,duration/second])
 xlabel('Time (s)')
 ylabel('Neuron Index')
 
-# figure(3)
-# plot(currents.t/second, currents.i_KACh[num_neurons - 1]/nA)
-# xlabel('t (s)')
-# ylabel('I (nA)')
-# 
-# figure(4)
-# plot(concentrations.t/second, concentrations.ACh_ex[num_neurons - 1]/mM)
-# xlabel('t (ms)')
-# ylabel('ACh Concentration (mM)')
-
-figure(5)
+figure(3)
 plot(spikesP.t/second, 1.0*spikesP.i, '.')
 xlim([0,duration/second])
 xlabel('Time (s)')
