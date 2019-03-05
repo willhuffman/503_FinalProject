@@ -21,7 +21,7 @@ from numpy import *
 # INITIALIZE EQUATIONS
 defaultclock.dt = 0.01*ms
 num_neurons = 10
-duration = 30.0*second
+duration = 10.0*second
 
 # DEFINE EQUATIONS
 eqs_i_CaL = '''
@@ -254,9 +254,12 @@ G = NeuronGroup(num_neurons, eqs,
                     
 # SET POISSON PROCESS
 P = PoissonGroup(num_neurons, '(20*Hz * i) / num_neurons')
+#indices = arange(num_neurons)
+#times1  = ar
+#P = SpikeGeneratorGroup(num_neurons, indices, times)
 
 # SET SYNAPSE
-S = Synapses(P,G, pre='''ACh_ms *= (1 - k_1 - k_2)
+S = Synapses(P,G, on_pre='''ACh_ms *= (1 - k_1 - k_2)
                          ACh += k_1*F_ms*ACh_ms
                          ACh_ex += k_2 * (F_ms/F_ex)*ACh_ms''')
 
